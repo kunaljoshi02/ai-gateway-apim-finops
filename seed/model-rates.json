@@ -1,0 +1,4 @@
+[
+  { "ModelName": "gpt-4.1-mini", "ModelVersion": "2025-04-14", "InputPer1k": 0.0004, "OutputPer1k": 0.0016, "CachedInputPer1k": 0.0001, "Currency": "USD", "EffectiveFrom": "2026-01-01T00:00:00Z" },
+  { "ModelName": "gpt-4.1",      "ModelVersion": "2025-04-14", "InputPer1k": 0.002,  "OutputPer1k": 0.008,  "CachedInputPer1k": 0.0005, "Currency": "USD", "EffectiveFrom": "2026-01-01T00:00:00Z" }
+]

@@ -1,0 +1,176 @@
+<policies>
+	<inbound>
+		<base />
+		<validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Invalid or missing Entra token" require-scheme="Bearer">
+			<openid-config url="https://login.microsoftonline.com/f6d12728-e960-45d2-bf98-1421e9bc8453/.well-known/openid-configuration" />
+			<audiences>
+				<audience>api://bac4c929-2fd5-40ea-8e23-efafa42b2637</audience>
+			</audiences>
+			<issuers>
+				<issuer>https://sts.windows.net/f6d12728-e960-45d2-bf98-1421e9bc8453/</issuer>
+			</issuers>
+			<required-claims>
+				<claim name="roles" match="any">
+					<value>Gateway.Access</value>
+				</claim>
+			</required-claims>
+		</validate-jwt>
+		<set-variable name="jwt" value="@(context.Request.Headers.GetValueOrDefault("Authorization","").Split(' ').Last().AsJwt())" />
+		<set-variable name="appid" value="@{ var j=(Jwt)context.Variables["jwt"]; return j.Claims.GetValueOrDefault("appid", j.Claims.GetValueOrDefault("azp","")); }" />
+		<set-variable name="oid" value="@{ var j=(Jwt)context.Variables["jwt"]; return j.Claims.GetValueOrDefault("oid",""); }" />
+		<set-variable name="tid" value="@{ var j=(Jwt)context.Variables["jwt"]; return j.Claims.GetValueOrDefault("tid",""); }" />
+		<set-variable name="roles" value="@{ var j=(Jwt)context.Variables["jwt"]; return j.Claims.ContainsKey("roles") ? string.Join(",", j.Claims["roles"]) : ""; }" />
+		<!-- === Azure AI Content Safety: screen the prompt before it reaches the model === -->
+		<set-variable name="promptText" value="@{
+			try {
+				var body = context.Request.Body.As<JObject>(preserveContent: true);
+				var msgs = body["messages"] as JArray;
+				if (msgs == null) { return ""; }
+				var sb = new System.Text.StringBuilder();
+				foreach (var m in msgs) { var c = m["content"]; if (c != null) { sb.Append(c.ToString()); sb.Append(" "); } }
+				var t = sb.ToString();
+				return t.Length > 8000 ? t.Substring(0, 8000) : t;
+			} catch (Exception) { return ""; }
+		}" />
+		<choose>
+			<when condition="@(!string.IsNullOrWhiteSpace((string)context.Variables["promptText"]))">
+				<send-request mode="new" response-variable-name="csResp" timeout="15" ignore-error="true">
+					<set-url>@("https://cs-finops-28016.cognitiveservices.azure.com/contentsafety/text:analyze?api-version=2024-09-01")</set-url>
+					<set-method>POST</set-method>
+					<set-header name="Content-Type" exists-action="override">
+						<value>application/json</value>
+					</set-header>
+					<set-body>@{
+						var rec = new JObject(
+							new JProperty("text", (string)context.Variables["promptText"]),
+							new JProperty("categories", new JArray("Hate","SelfHarm","Sexual","Violence")),
+							new JProperty("outputType", "FourSeverityLevels")
+						);
+						return rec.ToString();
+					}</set-body>
+					<authentication-managed-identity resource="https://cognitiveservices.azure.com" />
+				</send-request>
+				<set-variable name="csBlocked" value="@{
+					try {
+						var r = (IResponse)context.Variables["csResp"];
+						if (r == null || r.StatusCode != 200) { return "false"; }
+						var b = r.Body.As<JObject>(preserveContent: true);
+						var arr = b["categoriesAnalysis"] as JArray;
+						if (arr == null) { return "false"; }
+						foreach (var c in arr) { int sev = (int?)c["severity"] ?? 0; if (sev >= 4) { return (string)c["category"]; } }
+						return "false";
+					} catch (Exception) { return "false"; }
+				}" />
+				<choose>
+					<when condition="@((string)context.Variables["csBlocked"] != "false")">
+						<return-response>
+							<set-status code="403" reason="Blocked by Content Safety" />
+							<set-header name="Content-Type" exists-action="override">
+								<value>application/json</value>
+							</set-header>
+							<set-body>@{
+								return new JObject(
+									new JProperty("error", "content_safety_block"),
+									new JProperty("message", "Prompt blocked by Azure AI Content Safety."),
+									new JProperty("flaggedCategory", (string)context.Variables["csBlocked"]),
+									new JProperty("requestId", context.RequestId.ToString())
+								).ToString();
+							}</set-body>
+						</return-response>
+					</when>
+				</choose>
+			</when>
+		</choose>
+		<!-- Route to the load-balanced pool. Weights/priorities live on the pool, NOT here. -->
+		<set-backend-service backend-id="aoai-pool" />
+		<!-- Backends are endpoint-only (https://<name>.openai.azure.com). The AOAI data-plane
+		     lives under /openai, so prepend it; the deployment name stays in the request path. -->
+		<rewrite-uri template="/openai/deployments/{deployment}/chat/completions" copy-unmatched-params="true" />
+		<authentication-managed-identity resource="https://cognitiveservices.azure.com" />
+	</inbound>
+	<backend>
+		<!-- In-request retry: on 429/5xx, re-forward. Because the backend is a pool, each retry
+		     lands on a DIFFERENT healthy member, so a caller can succeed before the circuit
+		     breaker even trips. first-fast-retry sends attempt #2 immediately; then honor Retry-After. -->
+		<retry count="2" interval="0" first-fast-retry="true" condition="@(context.Response != null && (context.Response.StatusCode == 429 || context.Response.StatusCode >= 500))">
+			<forward-request buffer-request-body="true" />
+		</retry>
+	</backend>
+	<outbound>
+		<base />
+		<!-- Stamp the RESOLVED pool member (host) for per-backend cost attribution.
+     Note: context.Backend.Id returns the pool id ("aoai-pool"); the chosen member
+     surfaces as context.Request.Url.Host after the pool resolves. -->
+		<set-header name="x-backend-id" exists-action="override">
+			<value>@(context.Request.Url.Host)</value>
+		</set-header>
+		<send-request mode="new" response-variable-name="ingestResp" timeout="20" ignore-error="true">
+			<set-url>@("https://dce-apim-finops-ig7q.eastus2-1.ingest.monitor.azure.com/dataCollectionRules/dcr-b501ac3cf7f54539935329e69351dcb1/streams/Custom-ApimAiGateway?api-version=2023-01-01")</set-url>
+			<set-method>POST</set-method>
+			<set-header name="Content-Type" exists-action="override">
+				<value>application/json</value>
+			</set-header>
+			<set-body><![CDATA[@{
+        var roles = ((string)context.Variables["roles"] ?? "").Split(',');
+        string cc = ""; string bu = "";
+        foreach (var r in roles) { if (r.StartsWith("cc:")) { cc = r.Substring(3); } if (r.StartsWith("bu:")) { bu = r.Substring(3); } }
+        int pt=0, ct=0, tt=0, cpt=0; string model="";
+        try {
+          var body = context.Response.Body.As<JObject>(preserveContent:true);
+          var u = body["usage"];
+          if (u != null) {
+            pt = (int?)u["prompt_tokens"] ?? 0;
+            ct = (int?)u["completion_tokens"] ?? 0;
+            tt = (int?)u["total_tokens"] ?? 0;
+            if (u["prompt_tokens_details"] != null) { cpt = (int?)u["prompt_tokens_details"]["cached_tokens"] ?? 0; }
+          }
+          if (body["model"] != null) { model = (string)body["model"]; }
+        } catch (Exception) {}
+        string deployment = context.Request.MatchedParameters.GetValueOrDefault("deployment","");
+        if (string.IsNullOrEmpty(model)) { model = deployment; }
+        int sc = context.Response.StatusCode;
+        var rec = new JObject(
+          new JProperty("TimeGenerated", DateTime.UtcNow.ToString("o")),
+          new JProperty("RequestId", context.RequestId.ToString()),
+          new JProperty("OperationId", context.Operation.Id),
+          new JProperty("ApiName", context.Api.Name),
+          new JProperty("ApiId", context.Api.Id),
+          new JProperty("OperationName", context.Operation.Name),
+          new JProperty("ProductName", context.Product != null ? context.Product.Name : ""),
+          new JProperty("SubscriptionName", context.Subscription != null ? context.Subscription.Name : ""),
+          new JProperty("RouteClass", "model"),
+          new JProperty("ModelName", deployment),
+          new JProperty("ModelVersion", "2025-04-14"),
+          new JProperty("BackendId", context.Request.Url.Host),
+          new JProperty("DeploymentRegion", "eastus2"),
+          new JProperty("StatusCode", sc),
+          new JProperty("IsError", sc >= 400),
+          new JProperty("ErrorReason", sc >= 400 ? ("http_" + sc) : ""),
+          new JProperty("TotalLatencyMs", context.Elapsed.TotalMilliseconds),
+          new JProperty("BackendLatencyMs", context.Response.Headers.ContainsKey("x-ms-apim-backend-time") ? 0.0 : context.Elapsed.TotalMilliseconds),
+          new JProperty("PromptTokens", pt),
+          new JProperty("CompletionTokens", ct),
+          new JProperty("TotalTokens", tt),
+          new JProperty("CachedPromptTokens", cpt),
+          new JProperty("IsStreaming", false),
+          new JProperty("TokenSource", tt > 0 ? "response_body" : "none"),
+          new JProperty("ClientId", (string)context.Variables["appid"]),
+          new JProperty("Appid", (string)context.Variables["appid"]),
+          new JProperty("Oid", (string)context.Variables["oid"]),
+          new JProperty("UpnOrAppName", (string)context.Variables["appid"]),
+          new JProperty("TenantIdClaim", (string)context.Variables["tid"]),
+          new JProperty("BusinessUnitClaim", bu),
+          new JProperty("CostCenterClaim", cc),
+          new JProperty("RequestBytes", 0),
+          new JProperty("ResponseBytes", 0),
+          new JProperty("PolicyVersion", "v1")
+        );
+        return new JArray(rec).ToString();
+      }]]></set-body>
+			<authentication-managed-identity resource="https://monitor.azure.com" />
+		</send-request>
+	</outbound>
+	<on-error>
+		<base />
+	</on-error>
+</policies>

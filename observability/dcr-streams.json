@@ -1,0 +1,226 @@
+{
+  "Custom-ApimAiGateway": {
+    "columns": [
+      {
+        "name": "TimeGenerated",
+        "type": "datetime"
+      },
+      {
+        "name": "RequestId",
+        "type": "string"
+      },
+      {
+        "name": "OperationId",
+        "type": "string"
+      },
+      {
+        "name": "ApiName",
+        "type": "string"
+      },
+      {
+        "name": "ApiId",
+        "type": "string"
+      },
+      {
+        "name": "OperationName",
+        "type": "string"
+      },
+      {
+        "name": "ProductName",
+        "type": "string"
+      },
+      {
+        "name": "SubscriptionName",
+        "type": "string"
+      },
+      {
+        "name": "RouteClass",
+        "type": "string"
+      },
+      {
+        "name": "ModelName",
+        "type": "string"
+      },
+      {
+        "name": "ModelVersion",
+        "type": "string"
+      },
+      {
+        "name": "BackendId",
+        "type": "string"
+      },
+      {
+        "name": "DeploymentRegion",
+        "type": "string"
+      },
+      {
+        "name": "StatusCode",
+        "type": "int"
+      },
+      {
+        "name": "IsError",
+        "type": "boolean"
+      },
+      {
+        "name": "ErrorReason",
+        "type": "string"
+      },
+      {
+        "name": "TotalLatencyMs",
+        "type": "real"
+      },
+      {
+        "name": "BackendLatencyMs",
+        "type": "real"
+      },
+      {
+        "name": "PromptTokens",
+        "type": "int"
+      },
+      {
+        "name": "CompletionTokens",
+        "type": "int"
+      },
+      {
+        "name": "TotalTokens",
+        "type": "int"
+      },
+      {
+        "name": "CachedPromptTokens",
+        "type": "int"
+      },
+      {
+        "name": "IsStreaming",
+        "type": "boolean"
+      },
+      {
+        "name": "TokenSource",
+        "type": "string"
+      },
+      {
+        "name": "ClientId",
+        "type": "string"
+      },
+      {
+        "name": "Appid",
+        "type": "string"
+      },
+      {
+        "name": "Oid",
+        "type": "string"
+      },
+      {
+        "name": "UpnOrAppName",
+        "type": "string"
+      },
+      {
+        "name": "TenantIdClaim",
+        "type": "string"
+      },
+      {
+        "name": "BusinessUnitClaim",
+        "type": "string"
+      },
+      {
+        "name": "CostCenterClaim",
+        "type": "string"
+      },
+      {
+        "name": "RequestBytes",
+        "type": "int"
+      },
+      {
+        "name": "ResponseBytes",
+        "type": "int"
+      },
+      {
+        "name": "PolicyVersion",
+        "type": "string"
+      }
+    ]
+  },
+  "Custom-ApimClientOwnership": {
+    "columns": [
+      {
+        "name": "TimeGenerated",
+        "type": "datetime"
+      },
+      {
+        "name": "ClientId",
+        "type": "string"
+      },
+      {
+        "name": "AppName",
+        "type": "string"
+      },
+      {
+        "name": "Team",
+        "type": "string"
+      },
+      {
+        "name": "CostCenter",
+        "type": "string"
+      },
+      {
+        "name": "BusinessUnit",
+        "type": "string"
+      }
+    ]
+  },
+  "Custom-ApimModelRate": {
+    "columns": [
+      {
+        "name": "TimeGenerated",
+        "type": "datetime"
+      },
+      {
+        "name": "ModelName",
+        "type": "string"
+      },
+      {
+        "name": "ModelVersion",
+        "type": "string"
+      },
+      {
+        "name": "InputPer1k",
+        "type": "real"
+      },
+      {
+        "name": "OutputPer1k",
+        "type": "real"
+      },
+      {
+        "name": "CachedInputPer1k",
+        "type": "real"
+      },
+      {
+        "name": "Currency",
+        "type": "string"
+      },
+      {
+        "name": "EffectiveFrom",
+        "type": "datetime"
+      }
+    ]
+  },
+  "Custom-ApimTeamBudget": {
+    "columns": [
+      {
+        "name": "TimeGenerated",
+        "type": "datetime"
+      },
+      {
+        "name": "Team",
+        "type": "string"
+      },
+      {
+        "name": "MonthlyBudget",
+        "type": "real"
+      },
+      {
+        "name": "Currency",
+        "type": "string"
+      }
+    ]
+  }
+}

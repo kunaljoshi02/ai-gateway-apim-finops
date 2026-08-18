@@ -1,0 +1,6 @@
+[
+  { "ClientId": "0999cfae-085e-464f-a49d-f8851e3e5195", "AppName": "checkout-service",  "Team": "Checkout",    "CostCenter": "CC-1000", "BusinessUnit": "Retail" },
+  { "ClientId": "dd6d3503-88f1-4fc9-a4d0-1a79c3aaf364", "AppName": "search-api",        "Team": "Search",      "CostCenter": "CC-2000", "BusinessUnit": "Discovery" },
+  { "ClientId": "62a2cc36-edb8-4520-b7fe-05433a160c32", "AppName": "ds-notebooks",      "Team": "DataScience", "CostCenter": "CC-3000", "BusinessUnit": "Platform" },
+  { "ClientId": "7bec6f27-dc94-4d6d-b89a-3969513bc71e", "AppName": "mobile-assistant",  "Team": "Mobile",      "CostCenter": "CC-4000", "BusinessUnit": "Retail" }
+]

@@ -1,0 +1,6 @@
+[
+  { "Team": "Checkout",    "MonthlyBudget": 5,   "Currency": "USD" },
+  { "Team": "Search",      "MonthlyBudget": 50,  "Currency": "USD" },
+  { "Team": "DataScience", "MonthlyBudget": 200, "Currency": "USD" },
+  { "Team": "Mobile",      "MonthlyBudget": 25,  "Currency": "USD" }
+]

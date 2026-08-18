@@ -1,0 +1,31 @@
+// Budget Burn (month-to-date)
+// Placeholders: {TimeRange} is supplied by the workbook time picker.
+// Tables: ApimAiGateway_CL (usage), ApimClientOwnership_CL (who owns each app),
+//         ApimModelRate_CL (price per 1k tokens), ApimTeamBudget_CL (monthly budget).
+
+let Ownership=ApimClientOwnership_CL
+| summarize arg_max(TimeGenerated,*) by ClientId
+| project ClientId,Own_App=AppName,Own_Team=Team,Own_CC=CostCenter,Own_BU=BusinessUnit;
+
+let Rates=ApimModelRate_CL
+| summarize arg_max(TimeGenerated,*) by ModelName;
+
+let Base=ApimAiGateway_CL
+| where TimeGenerated {TimeRange}
+| lookup kind=leftouter Ownership on $left.Appid==$right.ClientId
+| extend Team=coalesce(Own_Team,'UNATTRIBUTED'),CostCenter=coalesce(iif(isempty(CostCenterClaim),tostring(Own_CC),CostCenterClaim),'UNKNOWN'),BusinessUnit=coalesce(iif(isempty(BusinessUnitClaim),tostring(Own_BU),BusinessUnitClaim),'UNKNOWN'),AppName=coalesce(Own_App,Appid),AttributionSource=iif(isnotempty(CostCenterClaim),'B:jwt-claim','A:lookup');
+
+let Budgets=ApimTeamBudget_CL
+| summarize arg_max(TimeGenerated,*) by Team
+| project Team,MonthlyBudget;
+
+Base
+| where startofmonth(TimeGenerated)==startofmonth(now())
+| lookup kind=leftouter Rates on ModelName
+| extend EstCost=(todouble(PromptTokens-CachedPromptTokens)/1000.0)*InputPer1k+(todouble(CompletionTokens)/1000.0)*OutputPer1k
+| summarize MtdCost=round(sum(EstCost),4) by Team
+| join kind=leftouter Budgets on Team
+| extend BurnPct=round(100.0*MtdCost/MonthlyBudget,1)
+| extend Status=case(BurnPct>=100,'OVER_BUDGET',BurnPct>=80,'WARN_80PCT','OK')
+| project Team,MtdCost,MonthlyBudget,BurnPct,Status
+| sort by BurnPct desc

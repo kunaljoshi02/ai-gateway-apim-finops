@@ -1,0 +1,11 @@
+# local / transient
+*.log
+*.tmp
+.DS_Store
+__pycache__/
+.venv/
+tmp/
+# never commit real tokens/keys
+*.pem
+*.key
+.env

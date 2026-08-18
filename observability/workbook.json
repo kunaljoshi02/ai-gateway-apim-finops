@@ -1,0 +1,235 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# \ud83d\udee1\ufe0f APIM AI Gateway \u2014 FinOps Analytics\nToken cost & governance across all AI/agent/MCP traffic fronted by API Management. Attribution: **A** = client_id\u2192ownership lookup \u00b7 **B** = Entra JWT `cc:`/`bu:` claim."
+      }
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "tr",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "type": 4,
+            "isRequired": true,
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 14400000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 2592000000
+                }
+              ]
+            },
+            "value": {
+              "durationMs": 2592000000
+            }
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      }
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let Ownership=ApimClientOwnership_CL|summarize arg_max(TimeGenerated,*) by ClientId|project ClientId,Own_App=AppName,Own_Team=Team,Own_CC=CostCenter,Own_BU=BusinessUnit;\nlet Rates=ApimModelRate_CL|summarize arg_max(TimeGenerated,*) by ModelName;\nlet Base=ApimAiGateway_CL|where TimeGenerated {TimeRange}|lookup kind=leftouter Ownership on $left.Appid==$right.ClientId|extend Team=coalesce(Own_Team,'UNATTRIBUTED'),CostCenter=coalesce(iif(isempty(CostCenterClaim),tostring(Own_CC),CostCenterClaim),'UNKNOWN'),BusinessUnit=coalesce(iif(isempty(BusinessUnitClaim),tostring(Own_BU),BusinessUnitClaim),'UNKNOWN'),AppName=coalesce(Own_App,Appid),AttributionSource=iif(isnotempty(CostCenterClaim),'B:jwt-claim','A:lookup');\nBase|summarize Requests=count(),Tokens=sum(TotalTokens),Errors=countif(IsError),Teams=dcountif(Team,Team!='UNATTRIBUTED')",
+        "size": 3,
+        "title": "Fleet KPIs",
+        "timeContext": {
+          "durationMs": 0
+        },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
+        ],
+        "visualization": "tiles"
+      }
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let Ownership=ApimClientOwnership_CL|summarize arg_max(TimeGenerated,*) by ClientId|project ClientId,Own_App=AppName,Own_Team=Team,Own_CC=CostCenter,Own_BU=BusinessUnit;\nlet Rates=ApimModelRate_CL|summarize arg_max(TimeGenerated,*) by ModelName;\nlet Base=ApimAiGateway_CL|where TimeGenerated {TimeRange}|lookup kind=leftouter Ownership on $left.Appid==$right.ClientId|extend Team=coalesce(Own_Team,'UNATTRIBUTED'),CostCenter=coalesce(iif(isempty(CostCenterClaim),tostring(Own_CC),CostCenterClaim),'UNKNOWN'),BusinessUnit=coalesce(iif(isempty(BusinessUnitClaim),tostring(Own_BU),BusinessUnitClaim),'UNKNOWN'),AppName=coalesce(Own_App,Appid),AttributionSource=iif(isnotempty(CostCenterClaim),'B:jwt-claim','A:lookup');\nBase|lookup kind=leftouter Rates on ModelName|extend EstCost=(todouble(PromptTokens-CachedPromptTokens)/1000.0)*InputPer1k+(todouble(CompletionTokens)/1000.0)*OutputPer1k|summarize EstCostUSD=round(sum(EstCost),4) by Team|sort by EstCostUSD desc",
+        "size": 1,
+        "title": "Estimated Cost by Team (USD)",
+        "timeContext": {
+          "durationMs": 0
+        },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
+        ],
+        "visualization": "barchart"
+      },
+      "customWidth": "50%"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let Ownership=ApimClientOwnership_CL|summarize arg_max(TimeGenerated,*) by ClientId|project ClientId,Own_App=AppName,Own_Team=Team,Own_CC=CostCenter,Own_BU=BusinessUnit;\nlet Rates=ApimModelRate_CL|summarize arg_max(TimeGenerated,*) by ModelName;\nlet Base=ApimAiGateway_CL|where TimeGenerated {TimeRange}|lookup kind=leftouter Ownership on $left.Appid==$right.ClientId|extend Team=coalesce(Own_Team,'UNATTRIBUTED'),CostCenter=coalesce(iif(isempty(CostCenterClaim),tostring(Own_CC),CostCenterClaim),'UNKNOWN'),BusinessUnit=coalesce(iif(isempty(BusinessUnitClaim),tostring(Own_BU),BusinessUnitClaim),'UNKNOWN'),AppName=coalesce(Own_App,Appid),AttributionSource=iif(isnotempty(CostCenterClaim),'B:jwt-claim','A:lookup');\nBase|summarize PromptTokens=sum(PromptTokens),CompletionTokens=sum(CompletionTokens) by ModelName|sort by PromptTokens desc",
+        "size": 1,
+        "title": "Token Usage by Model",
+        "timeContext": {
+          "durationMs": 0
+        },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
+        ],
+        "visualization": "barchart"
+      },
+      "customWidth": "50%"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let Ownership=ApimClientOwnership_CL|summarize arg_max(TimeGenerated,*) by ClientId|project ClientId,Own_App=AppName,Own_Team=Team,Own_CC=CostCenter,Own_BU=BusinessUnit;\nlet Rates=ApimModelRate_CL|summarize arg_max(TimeGenerated,*) by ModelName;\nlet Base=ApimAiGateway_CL|where TimeGenerated {TimeRange}|lookup kind=leftouter Ownership on $left.Appid==$right.ClientId|extend Team=coalesce(Own_Team,'UNATTRIBUTED'),CostCenter=coalesce(iif(isempty(CostCenterClaim),tostring(Own_CC),CostCenterClaim),'UNKNOWN'),BusinessUnit=coalesce(iif(isempty(BusinessUnitClaim),tostring(Own_BU),BusinessUnitClaim),'UNKNOWN'),AppName=coalesce(Own_App,Appid),AttributionSource=iif(isnotempty(CostCenterClaim),'B:jwt-claim','A:lookup');\nBase|lookup kind=leftouter Rates on ModelName|extend EstCost=(todouble(PromptTokens-CachedPromptTokens)/1000.0)*InputPer1k+(todouble(CompletionTokens)/1000.0)*OutputPer1k|summarize Requests=count(),TotalTokens=sum(TotalTokens),EstCostUSD=round(sum(EstCost),4) by Team,CostCenter,AttributionSource|sort by EstCostUSD desc",
+        "size": 1,
+        "title": "Cost & Attribution by Team / Cost Center",
+        "timeContext": {
+          "durationMs": 0
+        },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
+        ],
+        "visualization": "table"
+      },
+      "customWidth": "50%"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let Ownership=ApimClientOwnership_CL|summarize arg_max(TimeGenerated,*) by ClientId|project ClientId,Own_App=AppName,Own_Team=Team,Own_CC=CostCenter,Own_BU=BusinessUnit;\nlet Rates=ApimModelRate_CL|summarize arg_max(TimeGenerated,*) by ModelName;\nlet Base=ApimAiGateway_CL|where TimeGenerated {TimeRange}|lookup kind=leftouter Ownership on $left.Appid==$right.ClientId|extend Team=coalesce(Own_Team,'UNATTRIBUTED'),CostCenter=coalesce(iif(isempty(CostCenterClaim),tostring(Own_CC),CostCenterClaim),'UNKNOWN'),BusinessUnit=coalesce(iif(isempty(BusinessUnitClaim),tostring(Own_BU),BusinessUnitClaim),'UNKNOWN'),AppName=coalesce(Own_App,Appid),AttributionSource=iif(isnotempty(CostCenterClaim),'B:jwt-claim','A:lookup');\nlet Budgets=ApimTeamBudget_CL|summarize arg_max(TimeGenerated,*) by Team|project Team,MonthlyBudget;\nBase|where startofmonth(TimeGenerated)==startofmonth(now())|lookup kind=leftouter Rates on ModelName|extend EstCost=(todouble(PromptTokens-CachedPromptTokens)/1000.0)*InputPer1k+(todouble(CompletionTokens)/1000.0)*OutputPer1k|summarize MtdCost=round(sum(EstCost),4) by Team|join kind=leftouter Budgets on Team|extend BurnPct=round(100.0*MtdCost/MonthlyBudget,1)|extend Status=case(BurnPct>=100,'OVER_BUDGET',BurnPct>=80,'WARN_80PCT','OK')|project Team,MtdCost,MonthlyBudget,BurnPct,Status|sort by BurnPct desc",
+        "size": 1,
+        "title": "Budget Burn (month-to-date)",
+        "timeContext": {
+          "durationMs": 0
+        },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
+        ],
+        "visualization": "table",
+        "chartSettings": {
+          "showBorder": false
+        }
+      },
+      "customWidth": "50%"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let Ownership=ApimClientOwnership_CL|summarize arg_max(TimeGenerated,*) by ClientId|project ClientId,Own_App=AppName,Own_Team=Team,Own_CC=CostCenter,Own_BU=BusinessUnit;\nlet Rates=ApimModelRate_CL|summarize arg_max(TimeGenerated,*) by ModelName;\nlet Base=ApimAiGateway_CL|where TimeGenerated {TimeRange}|lookup kind=leftouter Ownership on $left.Appid==$right.ClientId|extend Team=coalesce(Own_Team,'UNATTRIBUTED'),CostCenter=coalesce(iif(isempty(CostCenterClaim),tostring(Own_CC),CostCenterClaim),'UNKNOWN'),BusinessUnit=coalesce(iif(isempty(BusinessUnitClaim),tostring(Own_BU),BusinessUnitClaim),'UNKNOWN'),AppName=coalesce(Own_App,Appid),AttributionSource=iif(isnotempty(CostCenterClaim),'B:jwt-claim','A:lookup');\nBase|summarize Tokens=sum(TotalTokens) by bin(TimeGenerated,5m),Team",
+        "size": 1,
+        "title": "Token Trend by Team",
+        "timeContext": {
+          "durationMs": 0
+        },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
+        ],
+        "visualization": "timechart"
+      }
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let Ownership=ApimClientOwnership_CL|summarize arg_max(TimeGenerated,*) by ClientId|project ClientId,Own_App=AppName,Own_Team=Team,Own_CC=CostCenter,Own_BU=BusinessUnit;\nlet Rates=ApimModelRate_CL|summarize arg_max(TimeGenerated,*) by ModelName;\nlet Base=ApimAiGateway_CL|where TimeGenerated {TimeRange}|lookup kind=leftouter Ownership on $left.Appid==$right.ClientId|extend Team=coalesce(Own_Team,'UNATTRIBUTED'),CostCenter=coalesce(iif(isempty(CostCenterClaim),tostring(Own_CC),CostCenterClaim),'UNKNOWN'),BusinessUnit=coalesce(iif(isempty(BusinessUnitClaim),tostring(Own_BU),BusinessUnitClaim),'UNKNOWN'),AppName=coalesce(Own_App,Appid),AttributionSource=iif(isnotempty(CostCenterClaim),'B:jwt-claim','A:lookup');\nBase|where StatusCode==200|summarize Calls=count(),GatewayP50=round(percentile(TotalLatencyMs,50),0),GatewayP95=round(percentile(TotalLatencyMs,95),0),BackendP95=round(percentile(BackendLatencyMs,95),0) by ModelName|sort by GatewayP95 desc",
+        "size": 1,
+        "title": "Latency p95 by Model (ms)",
+        "timeContext": {
+          "durationMs": 0
+        },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
+        ],
+        "visualization": "table"
+      },
+      "customWidth": "50%"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let Ownership=ApimClientOwnership_CL|summarize arg_max(TimeGenerated,*) by ClientId|project ClientId,Own_App=AppName,Own_Team=Team,Own_CC=CostCenter,Own_BU=BusinessUnit;\nlet Rates=ApimModelRate_CL|summarize arg_max(TimeGenerated,*) by ModelName;\nlet Base=ApimAiGateway_CL|where TimeGenerated {TimeRange}|lookup kind=leftouter Ownership on $left.Appid==$right.ClientId|extend Team=coalesce(Own_Team,'UNATTRIBUTED'),CostCenter=coalesce(iif(isempty(CostCenterClaim),tostring(Own_CC),CostCenterClaim),'UNKNOWN'),BusinessUnit=coalesce(iif(isempty(BusinessUnitClaim),tostring(Own_BU),BusinessUnitClaim),'UNKNOWN'),AppName=coalesce(Own_App,Appid),AttributionSource=iif(isnotempty(CostCenterClaim),'B:jwt-claim','A:lookup');\nBase|summarize Total=count(),Errors=countif(IsError),Http4xx=countif(StatusCode between (400 .. 499)),Http5xx=countif(StatusCode>=500) by ModelName,ErrorReason|extend ErrorRatePct=round(100.0*Errors/Total,2)|sort by Errors desc",
+        "size": 1,
+        "title": "Errors by Model / Reason",
+        "timeContext": {
+          "durationMs": 0
+        },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
+        ],
+        "visualization": "table"
+      },
+      "customWidth": "50%"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let Ownership=ApimClientOwnership_CL|summarize arg_max(TimeGenerated,*) by ClientId|project ClientId,Own_App=AppName,Own_Team=Team,Own_CC=CostCenter,Own_BU=BusinessUnit;\nlet Rates=ApimModelRate_CL|summarize arg_max(TimeGenerated,*) by ModelName;\nlet Base=ApimAiGateway_CL|where TimeGenerated {TimeRange}|lookup kind=leftouter Ownership on $left.Appid==$right.ClientId|extend Team=coalesce(Own_Team,'UNATTRIBUTED'),CostCenter=coalesce(iif(isempty(CostCenterClaim),tostring(Own_CC),CostCenterClaim),'UNKNOWN'),BusinessUnit=coalesce(iif(isempty(BusinessUnitClaim),tostring(Own_BU),BusinessUnitClaim),'UNKNOWN'),AppName=coalesce(Own_App,Appid),AttributionSource=iif(isnotempty(CostCenterClaim),'B:jwt-claim','A:lookup');\nBase|summarize Requests=count(),TotalTokens=sum(TotalTokens),LastSeen=max(TimeGenerated) by AppName,Appid,Team|top 25 by TotalTokens desc",
+        "size": 1,
+        "title": "Top Apps by Token Usage",
+        "timeContext": {
+          "durationMs": 0
+        },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [
+          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
+        ],
+        "visualization": "table"
+      }
+    }
+  ],
+  "isLocked": false,
+  "fallbackResourceIds": [
+    "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
+  ]
+}

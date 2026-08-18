@@ -1,0 +1,126 @@
+[
+  {
+    "name": "aoai-a",
+    "title": "AOAI A (100K TPM)",
+    "url": "https://aoai-finops-28016.openai.azure.com",
+    "type": null,
+    "pool": null,
+    "circuitBreaker": {
+      "rules": [
+        {
+          "name": "openai-throttle",
+          "failureCondition": {
+            "count": 3,
+            "interval": "PT1M",
+            "statusCodeRanges": [
+              {
+                "min": 429,
+                "max": 429
+              },
+              {
+                "min": 500,
+                "max": 599
+              }
+            ]
+          },
+          "tripDuration": "PT1M",
+          "acceptRetryAfter": true
+        }
+      ]
+    }
+  },
+  {
+    "name": "aoai-b",
+    "title": "AOAI B (50K TPM)",
+    "url": "https://aoai-finops-b-28016.openai.azure.com",
+    "type": null,
+    "pool": null,
+    "circuitBreaker": {
+      "rules": [
+        {
+          "name": "openai-throttle",
+          "failureCondition": {
+            "count": 3,
+            "interval": "PT1M",
+            "statusCodeRanges": [
+              {
+                "min": 429,
+                "max": 429
+              },
+              {
+                "min": 500,
+                "max": 599
+              }
+            ]
+          },
+          "tripDuration": "PT1M",
+          "acceptRetryAfter": true
+        }
+      ]
+    }
+  },
+  {
+    "name": "aoai-c",
+    "title": "AOAI C (150K TPM)",
+    "url": "https://aoai-finops-c-28016.openai.azure.com",
+    "type": null,
+    "pool": null,
+    "circuitBreaker": {
+      "rules": [
+        {
+          "name": "openai-throttle",
+          "failureCondition": {
+            "count": 3,
+            "interval": "PT1M",
+            "statusCodeRanges": [
+              {
+                "min": 429,
+                "max": 429
+              },
+              {
+                "min": 500,
+                "max": 599
+              }
+            ]
+          },
+          "tripDuration": "PT1M",
+          "acceptRetryAfter": true
+        }
+      ]
+    }
+  },
+  {
+    "name": "aoai-pool",
+    "title": "AOAI gpt-4.1-mini load-balanced pool",
+    "url": null,
+    "type": "Pool",
+    "pool": {
+      "services": [
+        {
+          "id": "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.ApiManagement/service/apim-finops-28016/backends/aoai-a",
+          "weight": 100,
+          "priority": 1
+        },
+        {
+          "id": "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.ApiManagement/service/apim-finops-28016/backends/aoai-b",
+          "weight": 25,
+          "priority": 2
+        },
+        {
+          "id": "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.ApiManagement/service/apim-finops-28016/backends/aoai-c",
+          "weight": 75,
+          "priority": 2
+        }
+      ]
+    },
+    "circuitBreaker": null
+  },
+  {
+    "name": "content-safety-backend",
+    "title": "Azure AI Content Safety",
+    "url": "https://cs-finops-28016.cognitiveservices.azure.com",
+    "type": null,
+    "pool": null,
+    "circuitBreaker": null
+  }
+]
