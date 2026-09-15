@@ -58,6 +58,16 @@ Two concerns, one gateway:
 | `seed/*.json` | Reference data: **model rate card**, **client→owner mapping**, **team budgets**. |
 | `docs/ARCHITECTURE.md` | How each piece fits + the cost-attribution model explained. |
 | `scripts/` | Deploy helpers (policy import, backend/pool creation, DCR + seed upload). |
+| `infra/` | **Bicep** to stand up a brand-new, self-contained copy of this whole stack (APIM, 3x AOAI, Content Safety, Log Analytics/DCR, workbook) in your own subscription. See `infra/DEPLOY.md`. |
+
+---
+
+## Deploy your own
+
+`infra/` provisions a fresh instance of everything above into a new resource
+group — no dependency on the original demo deployment. See `infra/DEPLOY.md`
+for the Entra app registration prerequisites and the `az deployment sub create`
+command.
 
 ---
 
