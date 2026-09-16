@@ -60,9 +60,6 @@
         "timeContextFromParameter": "TimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
-        "crossComponentResources": [
-          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
-        ],
         "visualization": "tiles"
       }
     },
@@ -79,9 +76,6 @@
         "timeContextFromParameter": "TimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
-        "crossComponentResources": [
-          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
-        ],
         "visualization": "barchart"
       },
       "customWidth": "50%"
@@ -99,9 +93,6 @@
         "timeContextFromParameter": "TimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
-        "crossComponentResources": [
-          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
-        ],
         "visualization": "barchart"
       },
       "customWidth": "50%"
@@ -119,9 +110,6 @@
         "timeContextFromParameter": "TimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
-        "crossComponentResources": [
-          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
-        ],
         "visualization": "table"
       },
       "customWidth": "50%"
@@ -139,9 +127,6 @@
         "timeContextFromParameter": "TimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
-        "crossComponentResources": [
-          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
-        ],
         "visualization": "table",
         "chartSettings": {
           "showBorder": false
@@ -162,9 +147,6 @@
         "timeContextFromParameter": "TimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
-        "crossComponentResources": [
-          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
-        ],
         "visualization": "timechart"
       }
     },
@@ -181,9 +163,6 @@
         "timeContextFromParameter": "TimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
-        "crossComponentResources": [
-          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
-        ],
         "visualization": "table"
       },
       "customWidth": "50%"
@@ -201,9 +180,6 @@
         "timeContextFromParameter": "TimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
-        "crossComponentResources": [
-          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
-        ],
         "visualization": "table"
       },
       "customWidth": "50%"
@@ -221,15 +197,9 @@
         "timeContextFromParameter": "TimeRange",
         "queryType": 0,
         "resourceType": "microsoft.operationalinsights/workspaces",
-        "crossComponentResources": [
-          "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
-        ],
         "visualization": "table"
       }
     }
   ],
-  "isLocked": false,
-  "fallbackResourceIds": [
-    "/subscriptions/68837237-5a48-41a9-bed4-947f5c277684/resourceGroups/rg-apim-finops-demo/providers/Microsoft.OperationalInsights/workspaces/law-apim-finops"
-  ]
+  "isLocked": false
 }
