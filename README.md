@@ -57,6 +57,7 @@ Two concerns, one gateway:
 | `observability/workbook.json` | The **Azure Monitor Workbook** ("APIM AI Gateway — FinOps") serialized definition. |
 | `seed/*.json` | Reference data: **model rate card**, **client→owner mapping**, **team budgets**. |
 | `docs/ARCHITECTURE.md` | How each piece fits + the cost-attribution model explained. |
+| `docs/DEMO-GUIDE.md` | Step-by-step script for walking a customer through a live demo. |
 | `scripts/` | Deploy helpers (policy import, backend/pool creation, DCR + seed upload). |
 | `infra/` | **Bicep** to stand up a brand-new, self-contained copy of this whole stack (APIM, 3x AOAI, Content Safety, Log Analytics/DCR, workbook) in your own subscription. See `infra/DEPLOY.md`. |
 
