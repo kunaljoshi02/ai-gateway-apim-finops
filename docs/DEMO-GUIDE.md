@@ -16,7 +16,8 @@ deployment. Pairs with `infra/DEPLOY.md` (how to stand it up) and
   | Resource group | `rg-ai-gateway-finops` |
   | Entra tenant ID | your tenant GUID |
   | Test **client** app id + secret | from the app registration you created |
-  | Resource app id (audience) | `api://<resourceApp-appId>` |
+  | **Resource** app id | bare GUID, e.g. `898bf371-…` — **not** the `api://` form |
+  | Token audience it produces | `api://<resource-app-appId>` (built for you by the script) |
   | Log Analytics workspace | `law-apim-finops-<suffix>` |
   | Workbook name | "APIM AI Gateway — FinOps" (in the resource group) |
 
@@ -61,10 +62,12 @@ flow — this simulates "an approved internal app calling the gateway"):
 
 ```powershell
 $tenantId    = "<tenant-guid>"
-$clientId    = "<test-client-appId>"
+$clientId    = "<test-client-appId>"      # the app that CALLS the gateway
 $clientSecret= "<test-client-secret>"
-$resourceApp = "<resource-app-appId>"
+$resourceApp = "<resource-app-appId>"     # the app the gateway PROTECTS — bare GUID, no "api://" prefix
 
+# $clientId and $resourceApp are two DIFFERENT app registrations.
+# Using $clientId here still returns a token, but with the wrong audience -> 401 at the gateway.
 $token = (Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token" -Body @{
   client_id = $clientId; client_secret = $clientSecret
   scope = "api://$resourceApp/.default"; grant_type = "client_credentials"
@@ -76,6 +79,24 @@ Invoke-RestMethod -Method Post -Uri "<gateway-url>/ai/deployments/gpt-4.1-mini/c
 ```
 
 **Expect:** `200` with a normal chat completion response, `finish_reason: "stop"`.
+
+> **Before you run it live, sanity-check the token** (do this during prep, not
+> on the call). This catches the most common setup mistake instantly:
+>
+> ```powershell
+> $p = $token.Split('.')[1].Replace('-','+').Replace('_','/')
+> switch ($p.Length % 4) { 2 { $p += '==' } 3 { $p += '=' } }
+> $claims = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($p)) | ConvertFrom-Json
+> [pscustomobject]@{ aud = $claims.aud; iss = $claims.iss; roles = $claims.roles -join ',' }
+> ```
+>
+> You must see **all three**:
+> - `aud` = `api://<resource-app-appId>`
+> - `iss` = `https://sts.windows.net/<tenant-guid>/`
+> - `roles` = `Gateway.Access`
+>
+> If `roles` is empty, the token is not accepted by the gateway — see
+> [Troubleshooting](#troubleshooting-401-invalid-or-missing-entra-token).
 
 Talking point: *"That request just passed through JWT validation, a Content
 Safety screen, and load-balanced routing to one of three Azure OpenAI
@@ -170,6 +191,43 @@ cost-center headers themselves."*
 - **"Can we self-tag cost center instead of the lookup table?"** → Yes — see
   step 1's talking point: a `cc:`/`bu:` claim in the token's `roles` short-
   circuits the ownership lookup (`AttributionSource: B:jwt-claim` in the KQL).
+
+## Troubleshooting: 401 "Invalid or missing Entra token"
+
+The gateway returns this **same** message for every auth failure, so the
+message alone won't tell you which one you hit. Decode the token (snippet in
+step 2) and compare the claims:
+
+| What you see in the token | Cause | Fix |
+|---|---|---|
+| `aud` = `api://<**client**-appId>` and no `roles` | `scope` was built from `$clientId` instead of `$resourceApp`. **You still get a token**, which is why this one is so easy to miss. | Point `scope` at the **resource** app id |
+| `aud` = `api://api://…` / token request fails | `$resourceApp` was set to the `api://…` URI instead of the bare GUID | Use the bare GUID; the script adds `api://` |
+| `aud` = `https://graph.microsoft.com` | `scope` was left as the Graph default | Use `api://$resourceApp/.default` |
+| Token looks right but header is `Bearer @{token_type=…}` | Forgot `.access_token` on the token response | Assign `(…).access_token`, not the whole object |
+| `roles` claim missing entirely | The client SP has no `Gateway.Access` app role assignment | See the assignment command below |
+| `iss` names a different tenant | Signed into the wrong tenant | `az login --tenant <tenant-guid>` |
+
+Verify the app role assignment actually exists (should return one row):
+
+```powershell
+$resourceSpId = az ad sp show --id "<resource-app-appId>" --query id -o tsv
+az rest --method GET `
+  --url "https://graph.microsoft.com/v1.0/servicePrincipals/$resourceSpId/appRoleAssignedTo" `
+  --query "value[].{app:principalDisplayName, roleId:appRoleId}" -o table
+```
+
+If it's missing, assign it:
+
+```powershell
+$clientSpId = az ad sp show --id "<test-client-appId>" --query id -o tsv
+$roleId     = az ad app show --id "<resource-app-appId>" --query "appRoles[?value=='Gateway.Access'].id | [0]" -o tsv
+az rest --method POST `
+  --url "https://graph.microsoft.com/v1.0/servicePrincipals/$clientSpId/appRoleAssignments" `
+  --body "{`"principalId`":`"$clientSpId`",`"resourceId`":`"$resourceSpId`",`"appRoleId`":`"$roleId`"}"
+```
+
+App-role changes are picked up on the **next** token request — discard any
+cached `$token` before retesting.
 
 ## Cleanup
 
