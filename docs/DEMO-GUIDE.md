@@ -104,23 +104,41 @@ accounts — all inside APIM, invisible to the calling app."*
 
 ## 3. Governance: Content Safety blocks unsafe prompts
 
-Send a prompt designed to trip a safety category (use a clearly-flagged but
-non-graphic test phrase, e.g. one of Azure AI Content Safety's own [sample
-test strings](https://learn.microsoft.com/azure/ai-services/content-safety/overview)):
+The policy screens every prompt against Azure AI Content Safety and blocks at
+**severity >= 4** across `Hate`, `SelfHarm`, `Sexual`, `Violence`. With
+`FourSeverityLevels` the scores are `0 / 2 / 4 / 6`, so a merely rude prompt
+scores 2 and **passes through by design**. Use a phrase that actually clears
+the bar:
 
 ```powershell
 Invoke-WebRequest -Uri "<gateway-url>/ai/deployments/gpt-4.1-mini/chat/completions?api-version=2024-08-01-preview" `
   -Method Post -Headers @{ Authorization = "Bearer $token" } -ContentType "application/json" `
-  -Body '{"messages":[{"role":"user","content":"<your test phrase that trips a safety category>"}]}' `
+  -Body '{"messages":[{"role":"user","content":"I am going to kill you and your entire family."}],"max_tokens":20}' `
   -SkipHttpErrorCheck
 ```
 
 **Expect:** `403` with a body like:
 ```json
-{ "error": "content_safety_block", "message": "Prompt blocked by Azure AI Content Safety.", "flaggedCategory": "Hate" }
+{ "error": "content_safety_block", "message": "Prompt blocked by Azure AI Content Safety.", "flaggedCategory": "Violence" }
 ```
 
-Talking point: *"The model never even saw this prompt — Content Safety
+Verified scores against this deployment -- showing both is a stronger demo than
+showing only the block, because it makes the point that this is a *tunable
+severity threshold*, not a keyword blocklist:
+
+| Prompt | Content Safety score | Gateway |
+|---|---|---|
+| `You are a terrible person and I hate you.` | `Hate=2` | **200** -- below threshold |
+| `I am going to kill you and your entire family.` | `Violence=4` | **403** blocked |
+
+> **Do not use a "how do I build a bomb" style prompt as your test.** It scores
+> **0** on all four categories -- these categories measure expressed harm, not
+> procedural/instructional risk. Catching that class of prompt is what **Prompt
+> Shields** (`shieldPrompt`) is for, and this reference policy does not enable
+> it. If a customer asks about jailbreaks, that is the honest answer and a
+> natural extension point.
+
+Talking point: *"The model never even saw this prompt -- Content Safety
 screened it in the gateway's inbound pipeline before `set-backend-service`
 routed anywhere."*
 
@@ -228,6 +246,40 @@ az rest --method POST `
 
 App-role changes are picked up on the **next** token request — discard any
 cached `$token` before retesting.
+
+## Troubleshooting: Content Safety returns 200 instead of 403
+
+Almost always the prompt simply scored below the block threshold. Check in
+this order:
+
+1. **Is the prompt actually severity ≥ 4?** Severity 2 (mildly rude) passes by
+   design. Use the verified phrase in step 3. Procedural "how do I build X"
+   prompts score 0 — see the note in step 3.
+2. **Is it a `messages`-shaped body?** The policy extracts `promptText` from
+   `body["messages"]`. Any other shape yields an empty string, and the whole
+   Content Safety `<choose>` block is skipped.
+3. **Can APIM reach Content Safety?** The `send-request` uses
+   `ignore-error="true"`, and the evaluator returns `"false"` on a non-200 or
+   on any exception — so an auth/network failure **fails open** and looks
+   exactly like a clean prompt. Confirm APIM's managed identity still holds
+   `Cognitive Services User` on the Content Safety account:
+
+   ```powershell
+   $csId = az cognitiveservices account show -g <rg> -n <cs-name> --query id -o tsv
+   $mi   = az apim show -g <rg> -n <apim-name> --query identity.principalId -o tsv
+   az role assignment list --scope $csId --assignee $mi --query "[].roleDefinitionName" -o tsv
+   ```
+
+   Expect `Cognitive Services User`. Also confirm the account has
+   `publicNetworkAccess: Enabled` (or a network path from APIM) and note that
+   `disableLocalAuth: true` is expected — the policy authenticates with the
+   managed identity, not a key.
+
+> **Fail-open is a deliberate availability trade-off, and customers will ask.**
+> If Content Safety is unreachable the gateway lets traffic through rather than
+> hard-failing every request. To fail *closed* instead, drop
+> `ignore-error="true"` and return a `503` when `csResp` is null or non-200.
+> Worth raising proactively — it lands better than being caught by it.
 
 ## Cleanup
 
